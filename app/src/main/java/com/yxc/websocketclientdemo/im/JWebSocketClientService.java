@@ -18,6 +18,7 @@ import android.util.Log;
 
 import com.yxc.websocketclientdemo.MainActivity;
 import com.yxc.websocketclientdemo.R;
+import com.yxc.websocketclientdemo.modle.ChatMessage;
 import com.yxc.websocketclientdemo.util.Util;
 
 import org.java_websocket.handshake.ServerHandshake;
@@ -124,12 +125,16 @@ public class JWebSocketClientService extends Service {
             @Override
             public void onMessage(String message) {
                 Log.e("JWebSocketClientService", "收到的消息：" + message);
-
                 Intent intent = new Intent();
                 intent.setAction("com.xch.servicecallback.content");
                 intent.putExtra("message", message);
                 sendBroadcast(intent);
-
+                ChatMessage chatMessage = new ChatMessage();
+                chatMessage.setContent(message);
+                chatMessage.setIsMeSend(0);
+                chatMessage.setIsRead(1);
+                chatMessage.setTime(System.currentTimeMillis() + "");
+                chatMessage.save();
                 checkLockAndShowNotification(message);
             }
 
