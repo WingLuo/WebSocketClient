@@ -21,6 +21,8 @@ import com.yxc.websocketclientdemo.R;
 import com.yxc.websocketclientdemo.util.Util;
 
 import org.java_websocket.handshake.ServerHandshake;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.URI;
 
@@ -165,6 +167,13 @@ public class JWebSocketClientService extends Service {
      */
     public void sendMsg(String msg) {
         if (null != client) {
+            JSONObject o=new JSONObject();
+            try {
+                o.put("msg",msg);
+                msg=o.toString();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
             Log.e("JWebSocketClientService", "发送的消息：" + msg);
             client.send(msg);
         }

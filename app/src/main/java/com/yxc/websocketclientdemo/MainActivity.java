@@ -12,19 +12,20 @@ import android.content.ServiceConnection;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.TextView;
+import android.widget.RelativeLayout;
 
 import com.yxc.websocketclientdemo.adapter.Adapter_ChatMessage;
 import com.yxc.websocketclientdemo.im.JWebSocketClient;
@@ -46,6 +47,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private EditText et_content;
     private ListView listView;
     private Button btn_send;
+    private ImageView btn_voice_or_text;
+    private Button btn_voice;
+    private RelativeLayout rl_input,rl_multi_and_send;
     private List<ChatMessage> chatMessageList = new ArrayList<>();//消息列表
     private Adapter_ChatMessage adapter_chatMessage;
     private ChatMessageReceiver chatMessageReceiver;
@@ -65,16 +69,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
-    private class ChatMessageReceiver extends BroadcastReceiver{
+    private class ChatMessageReceiver extends BroadcastReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            String message=intent.getStringExtra("message");
-            ChatMessage chatMessage=new ChatMessage();
+            String message = intent.getStringExtra("message");
+            ChatMessage chatMessage = new ChatMessage();
             chatMessage.setContent(message);
             chatMessage.setIsMeSend(0);
             chatMessage.setIsRead(1);
-            chatMessage.setTime(System.currentTimeMillis()+"");
+            chatMessage.setTime(System.currentTimeMillis() + "");
             chatMessageList.add(chatMessage);
             initChatMsgListView();
         }
@@ -85,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
-        mContext=MainActivity.this;
+        mContext = MainActivity.this;
         //启动服务
         startJWebSClientService();
         //绑定服务
@@ -105,6 +109,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent bindIntent = new Intent(mContext, JWebSocketClientService.class);
         bindService(bindIntent, serviceConnection, BIND_AUTO_CREATE);
     }
+
     /**
      * 启动服务（websocket客户端服务）
      */
@@ -112,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent intent = new Intent(mContext, JWebSocketClientService.class);
         startService(intent);
     }
+
     /**
      * 动态注册广播
      */
@@ -123,11 +129,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void findViewById() {
+        rl_multi_and_send = findViewById(R.id.rl_multi_and_send);
+        rl_input = findViewById(R.id.rl_input);
+        btn_voice_or_text = findViewById(R.id.btn_voice_or_text);
+        btn_voice = findViewById(R.id.btn_voice);
         listView = findViewById(R.id.chatmsg_listView);
         btn_send = findViewById(R.id.btn_send);
         et_content = findViewById(R.id.et_content);
+        btn_voice_or_text.setOnClickListener(this);
         btn_send.setOnClickListener(this);
     }
+
     private void initView() {
         //监听输入框的变化
         et_content.addTextChangedListener(new TextWatcher() {
@@ -155,6 +167,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.btn_voice_or_text:
+                if (btn_voice.getVisibility() == View.VISIBLE) {
+                    btn_voice.setVisibility(View.GONE);
+                    rl_input.setVisibility(View.VISIBLE);
+                    rl_multi_and_send.setVisibility(View.VISIBLE);
+                } else {
+                    btn_voice.setVisibility(View.VISIBLE);
+                    rl_input.setVisibility(View.GONE);
+                    rl_multi_and_send.setVisibility(View.GONE);
+                }
+                break;
             case R.id.btn_send:
                 String content = et_content.getText().toString();
                 if (content.length() <= 0) {
@@ -166,11 +189,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     jWebSClientService.sendMsg(content);
 
                     //暂时将发送的消息加入消息列表，实际以发送成功为准（也就是服务器返回你发的消息时）
-                    ChatMessage chatMessage=new ChatMessage();
+                    ChatMessage chatMessage = new ChatMessage();
                     chatMessage.setContent(content);
                     chatMessage.setIsMeSend(1);
                     chatMessage.setIsRead(1);
-                    chatMessage.setTime(System.currentTimeMillis()+"");
+                    chatMessage.setTime(System.currentTimeMillis() + "");
                     chatMessageList.add(chatMessage);
                     initChatMsgListView();
                     et_content.setText("");
@@ -183,7 +206,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void initChatMsgListView(){
+    private void initChatMsgListView() {
         adapter_chatMessage = new Adapter_ChatMessage(mContext, chatMessageList);
         listView.setAdapter(adapter_chatMessage);
         listView.setSelection(chatMessageList.size());
@@ -212,6 +235,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }).show();
         }
     }
+
     /**
      * 如果没有开启通知，跳转至设置界面
      *
