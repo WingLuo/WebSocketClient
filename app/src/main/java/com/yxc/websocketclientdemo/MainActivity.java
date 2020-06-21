@@ -33,6 +33,8 @@ import com.yxc.websocketclientdemo.im.JWebSocketClientService;
 import com.yxc.websocketclientdemo.modle.ChatMessage;
 import com.yxc.websocketclientdemo.util.Util;
 
+import org.litepal.LitePal;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -49,7 +51,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button btn_send;
     private ImageView btn_voice_or_text;
     private Button btn_voice;
-    private RelativeLayout rl_input,rl_multi_and_send;
+    private RelativeLayout rl_input, rl_multi_and_send;
     private List<ChatMessage> chatMessageList = new ArrayList<>();//消息列表
     private Adapter_ChatMessage adapter_chatMessage;
     private ChatMessageReceiver chatMessageReceiver;
@@ -80,7 +82,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             chatMessage.setIsRead(1);
             chatMessage.setTime(System.currentTimeMillis() + "");
             chatMessageList.add(chatMessage);
-            initChatMsgListView();
+            chatMessage.save();
+            notifyChangeData();
         }
     }
 
@@ -100,6 +103,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         checkNotification(mContext);
         findViewById();
         initView();
+        initData();
+    }
+
+    private void initData() {
+        List<ChatMessage> temp = LitePal.findAll(ChatMessage.class);
+        chatMessageList.addAll(temp);
+
+        int size = chatMessageList.size();
+        if (size > 0) {
+            adapter_chatMessage.notifyDataSetChanged();
+            listView.setSelection(size);
+        }
     }
 
     /**
@@ -141,6 +156,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initView() {
+        adapter_chatMessage = new Adapter_ChatMessage(mContext, chatMessageList);
+        listView.setAdapter(adapter_chatMessage);
         //监听输入框的变化
         et_content.addTextChangedListener(new TextWatcher() {
             @Override
@@ -195,8 +212,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     chatMessage.setIsRead(1);
                     chatMessage.setTime(System.currentTimeMillis() + "");
                     chatMessageList.add(chatMessage);
-                    initChatMsgListView();
+                    notifyChangeData();
                     et_content.setText("");
+                    chatMessage.save();
                 } else {
                     Util.showToast(mContext, "连接已断开，请稍等或重启App哟");
                 }
@@ -206,9 +224,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void initChatMsgListView() {
-        adapter_chatMessage = new Adapter_ChatMessage(mContext, chatMessageList);
-        listView.setAdapter(adapter_chatMessage);
+    private void notifyChangeData() {
+        adapter_chatMessage.notifyDataSetChanged();
         listView.setSelection(chatMessageList.size());
     }
 

@@ -1,6 +1,8 @@
 package com.yxc.websocketclientdemo.modle;
 
-public class ChatMessage {
+import org.litepal.crud.LitePalSupport;
+
+public class ChatMessage extends LitePalSupport {
     private String content;
     private String time;
     private int isMeSend;//0是对方发送 1是自己发送
