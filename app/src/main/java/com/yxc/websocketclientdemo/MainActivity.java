@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -18,6 +19,7 @@ import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
@@ -46,11 +48,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private JWebSocketClient client;
     private JWebSocketClientService.JWebSocketClientBinder binder;
     private JWebSocketClientService jWebSClientService;
-    private EditText et_content;
+    private EditText et_content, etUrl;
     private ListView listView;
     private Button btn_send;
     private ImageView btn_voice_or_text;
-    private Button btn_voice;
+    private Button btn_voice, btnConnect;
     private RelativeLayout rl_input, rl_multi_and_send;
     private List<ChatMessage> chatMessageList = new ArrayList<>();//消息列表
     private Adapter_ChatMessage adapter_chatMessage;
@@ -144,6 +146,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void findViewById() {
+        etUrl = findViewById(R.id.etUrl);
+        btnConnect = findViewById(R.id.btnConnect);
         rl_multi_and_send = findViewById(R.id.rl_multi_and_send);
         rl_input = findViewById(R.id.rl_input);
         btn_voice_or_text = findViewById(R.id.btn_voice_or_text);
@@ -151,8 +155,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         listView = findViewById(R.id.chatmsg_listView);
         btn_send = findViewById(R.id.btn_send);
         et_content = findViewById(R.id.et_content);
+        btnConnect.setOnClickListener(this);
         btn_voice_or_text.setOnClickListener(this);
         btn_send.setOnClickListener(this);
+
+        SharedPreferences sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
+        String target = sharedPreferences.getString("target", "");
+        etUrl.setText(target);
+
+        String url = etUrl.getText().toString();
+        if (TextUtils.isEmpty(url)) {
+            etUrl.setText(Util.ws);
+        }
     }
 
     private void initView() {
@@ -184,6 +198,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.btnConnect:
+                String url = etUrl.getText().toString();
+                //步骤1：创建一个SharedPreferences对象
+                SharedPreferences sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
+                //步骤2： 实例化SharedPreferences.Editor对象
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                //步骤3：将获取过来的值放入文件
+                editor.putString("target", url);
+                //步骤4：提交
+                editor.commit();
+                startJWebSClientService();
+                break;
             case R.id.btn_voice_or_text:
                 if (btn_voice.getVisibility() == View.VISIBLE) {
                     btn_voice.setVisibility(View.GONE);

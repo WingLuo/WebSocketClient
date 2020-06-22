@@ -8,12 +8,14 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.yxc.websocketclientdemo.MainActivity;
@@ -33,6 +35,7 @@ public class JWebSocketClientService extends Service {
     public JWebSocketClient client;
     private JWebSocketClientBinder mBinder = new JWebSocketClientBinder();
     private final static int GRAY_SERVICE_ID = 1001;
+
     //灰色保活
     public static class GrayInnerService extends Service {
 
@@ -43,22 +46,22 @@ public class JWebSocketClientService extends Service {
             stopSelf();
             return super.onStartCommand(intent, flags, startId);
         }
+
         @Override
         public IBinder onBind(Intent intent) {
             return null;
         }
     }
+
     PowerManager.WakeLock wakeLock;//锁屏唤醒
+
     //获取电源锁，保持该服务在屏幕熄灭时仍然获取CPU时，保持运行
     @SuppressLint("InvalidWakeLockTag")
-    private void acquireWakeLock()
-    {
-        if (null == wakeLock)
-        {
-            PowerManager pm = (PowerManager)this.getSystemService(Context.POWER_SERVICE);
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK|PowerManager.ON_AFTER_RELEASE, "PostLocationService");
-            if (null != wakeLock)
-            {
+    private void acquireWakeLock() {
+        if (null == wakeLock) {
+            PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "PostLocationService");
+            if (null != wakeLock) {
                 wakeLock.acquire();
             }
         }
@@ -91,12 +94,12 @@ public class JWebSocketClientService extends Service {
         if (Build.VERSION.SDK_INT < 18) {
             //Android4.3以下 ，隐藏Notification上的图标
             startForeground(GRAY_SERVICE_ID, new Notification());
-        } else if(Build.VERSION.SDK_INT>18 && Build.VERSION.SDK_INT<25){
+        } else if (Build.VERSION.SDK_INT > 18 && Build.VERSION.SDK_INT < 25) {
             //Android4.3 - Android7.0，隐藏Notification上的图标
             Intent innerIntent = new Intent(this, GrayInnerService.class);
             startService(innerIntent);
             startForeground(GRAY_SERVICE_ID, new Notification());
-        }else{
+        } else {
             //Android7.0以上app启动后通知栏会出现一条"正在运行"的通知
             startForeground(GRAY_SERVICE_ID, new Notification());
         }
@@ -120,7 +123,15 @@ public class JWebSocketClientService extends Service {
      * 初始化websocket连接
      */
     private void initSocketClient() {
-        URI uri = URI.create(Util.ws);
+        SharedPreferences sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
+        String target = sharedPreferences.getString("target", "");
+        URI uri;
+        if (TextUtils.isEmpty(target)) {
+            uri = URI.create(Util.ws);
+        } else {
+            uri = URI.create(target);
+        }
+
         client = new JWebSocketClient(uri) {
             @Override
             public void onMessage(String message) {
@@ -172,10 +183,10 @@ public class JWebSocketClientService extends Service {
      */
     public void sendMsg(String msg) {
         if (null != client) {
-            JSONObject o=new JSONObject();
+            JSONObject o = new JSONObject();
             try {
-                o.put("msg",msg);
-                msg=o.toString();
+                o.put("msg", msg);
+                msg = o.toString();
             } catch (JSONException e) {
                 e.printStackTrace();
             }
