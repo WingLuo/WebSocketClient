@@ -1,20 +1,24 @@
 package com.yxc.websocketclientdemo.im;
 
 import android.annotation.SuppressLint;
+import android.app.AlarmManager;
 import android.app.KeyguardManager;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.support.v4.app.NotificationCompat;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -29,12 +33,12 @@ import org.json.JSONObject;
 
 import java.net.URI;
 
-import static android.support.v4.app.NotificationCompat.VISIBILITY_PUBLIC;
-
 public class JWebSocketClientService extends Service {
     public JWebSocketClient client;
     private JWebSocketClientBinder mBinder = new JWebSocketClientBinder();
     private final static int GRAY_SERVICE_ID = 1001;
+    String CHANNEL_ONE_ID = "com.yxc.websocketclient";
+    String CHANNEL_TWO_ID = "com.yxc.websocketclient.receive";
 
     //灰色保活
     public static class GrayInnerService extends Service {
@@ -67,6 +71,40 @@ public class JWebSocketClientService extends Service {
         }
     }
 
+    private void setAlarm() {
+
+        //创建Alarm并启动
+        Intent intent = new Intent("HEART_CLOCK");
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+// 每五秒唤醒一次
+        long second = 15 * 1000;
+        second = System.currentTimeMillis() + 15 * 1000;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, second,
+                    pendingIntent);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, second,
+                    pendingIntent);
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, second,
+                    pendingIntent);
+        }
+    }
+
+    public class AlarmReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals("HEART_CLOCK")) {
+                Log.d("timer", "--->>>   onReceive  LOCATION_CLOCK");
+                Intent mIntent = new Intent(context, JWebSocketClientService.class);
+                mIntent.putExtra("command", "timer");
+                context.startService(mIntent);
+            }
+        }
+    }
+
+
     //用于Activity和service通讯
     public class JWebSocketClientBinder extends Binder {
         public JWebSocketClientService getService() {
@@ -82,14 +120,15 @@ public class JWebSocketClientService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        setForegroundNotify();
+        setAlarm();
+
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        //初始化websocket
-        initSocketClient();
-        mHandler.postDelayed(heartBeatRunnable, HEART_BEAT_RATE);//开启心跳检测
-
+    /**
+     * 设置前台通知
+     */
+    private void setForegroundNotify() {
         //设置service为前台服务，提高优先级
         if (Build.VERSION.SDK_INT < 18) {
             //Android4.3以下 ，隐藏Notification上的图标
@@ -99,12 +138,56 @@ public class JWebSocketClientService extends Service {
             Intent innerIntent = new Intent(this, GrayInnerService.class);
             startService(innerIntent);
             startForeground(GRAY_SERVICE_ID, new Notification());
-        } else {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             //Android7.0以上app启动后通知栏会出现一条"正在运行"的通知
+
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
+            PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Notification notification = null;
+            NotificationManager mManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            Uri mUri = Settings.System.DEFAULT_NOTIFICATION_URI;
+            NotificationChannel mChannel = null;
+            mChannel = new NotificationChannel(CHANNEL_ONE_ID, "消息服务", NotificationManager.IMPORTANCE_LOW);
+            mChannel.setDescription("消息连接服务");
+            mChannel.setSound(mUri, Notification.AUDIO_ATTRIBUTES_DEFAULT);
+            mManager.createNotificationChannel(mChannel);
+            notification = new Notification.Builder(this, CHANNEL_ONE_ID)
+                    .setChannelId(CHANNEL_ONE_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("服务器消息")
+                    .setContentText("消息连接服务")
+                    .setContentIntent(pi)
+                    .build();
+            startForeground(GRAY_SERVICE_ID, notification);
+        } else {
             startForeground(GRAY_SERVICE_ID, new Notification());
         }
+    }
 
-        acquireWakeLock();
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String command = intent.getStringExtra("command");
+            if (!TextUtils.isEmpty(command)) {
+                if (TextUtils.equals(command, "timer")) {
+                    setAlarm();
+                }
+            } else {
+                initSocketClient();
+                //开启心跳检测
+                mHandler.postDelayed(heartBeatRunnable, HEART_BEAT_RATE);
+                acquireWakeLock();
+            }
+        } else {
+            initSocketClient();
+            //开启心跳检测
+            mHandler.postDelayed(heartBeatRunnable, HEART_BEAT_RATE);
+            acquireWakeLock();
+        }
+
+
         return START_STICKY;
     }
 
@@ -126,37 +209,49 @@ public class JWebSocketClientService extends Service {
         SharedPreferences sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
         String target = sharedPreferences.getString("target", "");
         URI uri;
+
+
         if (TextUtils.isEmpty(target)) {
             uri = URI.create(Util.ws);
         } else {
             uri = URI.create(target);
         }
 
-        client = new JWebSocketClient(uri) {
-            @Override
-            public void onMessage(String message) {
-                Log.e("JWebSocketClientService", "收到的消息：" + message);
-                Intent intent = new Intent();
-                intent.setAction("com.xch.servicecallback.content");
-                intent.putExtra("message", message);
-                sendBroadcast(intent);
-                ChatMessage chatMessage = new ChatMessage();
-                chatMessage.setContent(message);
-                chatMessage.setIsMeSend(0);
-                chatMessage.setIsRead(1);
-                chatMessage.setTime(System.currentTimeMillis() + "");
-                chatMessage.save();
-                checkLockAndShowNotification(message);
-            }
+        if (client != null && !client.getURI().equals(uri) && !client.isClosed()) {
+            //uri
+            //需要先关闭连接 再重新连接
+            closeConnect();
+        }
+        if (client == null || client.isClosed()) {
+            client = new JWebSocketClient(uri) {
+                @Override
+                public void onMessage(String message) {
+                    Log.e("JWebSocketClientService", "收到的消息：" + message);
+                    Intent intent = new Intent();
+                    intent.setAction("com.xch.servicecallback.content");
+                    intent.putExtra("message", message);
+                    sendBroadcast(intent);
+                    ChatMessage chatMessage = new ChatMessage();
+                    chatMessage.setContent(message);
+                    chatMessage.setIsMeSend(0);
+                    chatMessage.setIsRead(1);
+                    chatMessage.setTime(System.currentTimeMillis() + "");
+                    chatMessage.save();
+                    checkLockAndShowNotification(message);
+                }
 
-            @Override
-            public void onOpen(ServerHandshake handshakedata) {
-                super.onOpen(handshakedata);
-                Log.e("JWebSocketClientService", "websocket连接成功");
-            }
-        };
-        connect();
+                @Override
+                public void onOpen(ServerHandshake handshakedata) {
+                    super.onOpen(handshakedata);
+                    Log.e("JWebSocketClientService", "websocket连接成功");
+                }
+            };
+            connect();
+        }
+
+
     }
+
 
     /**
      * 连接websocket
@@ -242,24 +337,46 @@ public class JWebSocketClientService extends Service {
      * @param content
      */
     private void sendNotification(String content) {
-        Intent intent = new Intent();
-        intent.setClass(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        NotificationManager notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification notification = new NotificationCompat.Builder(this)
-                .setAutoCancel(true)
-                // 设置该通知优先级
-                .setPriority(Notification.PRIORITY_MAX)
-                .setSmallIcon(R.drawable.icon)
-                .setContentTitle("服务器")
-                .setContentText(content)
-                .setVisibility(VISIBILITY_PUBLIC)
-                .setWhen(System.currentTimeMillis())
-                // 向通知添加声音、闪灯和振动效果
-                .setDefaults(Notification.DEFAULT_VIBRATE | Notification.DEFAULT_ALL | Notification.DEFAULT_SOUND)
-                .setContentIntent(pendingIntent)
-                .build();
-        notifyManager.notify(1, notification);//id要保证唯一
+
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
+        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification notification = null;
+        NotificationManager mManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+
+            Uri mUri = Settings.System.DEFAULT_NOTIFICATION_URI;
+
+            NotificationChannel mChannel = new NotificationChannel(CHANNEL_TWO_ID, "接受消息", NotificationManager.IMPORTANCE_LOW);
+
+            mChannel.setDescription("接受到消息");
+
+            mChannel.setSound(mUri, Notification.AUDIO_ATTRIBUTES_DEFAULT);
+
+            mManager.createNotificationChannel(mChannel);
+
+            notification = new Notification.Builder(this, CHANNEL_TWO_ID)
+                    .setChannelId(CHANNEL_TWO_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("服务器")
+                    .setContentText(content)
+                    .setContentIntent(pi)
+                    .build();
+        } else {
+            // 提升应用权限
+            notification = new Notification.Builder(this)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("服务器")
+                    .setContentText(content)
+                    .setContentIntent(pi)
+                    .build();
+        }
+        notification.flags = Notification.FLAG_ONGOING_EVENT;
+        notification.flags |= Notification.FLAG_NO_CLEAR;
+        notification.flags |= Notification.FLAG_FOREGROUND_SERVICE;
+        startForeground(20000, notification);
+
+
     }
 
 

@@ -16,8 +16,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -28,6 +26,9 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.yxc.websocketclientdemo.adapter.Adapter_ChatMessage;
 import com.yxc.websocketclientdemo.im.JWebSocketClient;
@@ -84,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             chatMessage.setIsRead(1);
             chatMessage.setTime(System.currentTimeMillis() + "");
             chatMessageList.add(chatMessage);
-            chatMessage.save();
+//            chatMessage.save();
             notifyChangeData();
         }
     }
@@ -144,6 +145,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         registerReceiver(chatMessageReceiver, filter);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(serviceConnection);
+        unregisterReceiver(chatMessageReceiver);
+
+    }
 
     private void findViewById() {
         etUrl = findViewById(R.id.etUrl);
