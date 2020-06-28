@@ -156,7 +156,7 @@ public class JWebSocketClientService extends Service {
             notification = new Notification.Builder(this, CHANNEL_ONE_ID)
                     .setChannelId(CHANNEL_ONE_ID)
                     .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle("服务器消息")
+                    .setContentTitle("消息服务")
                     .setContentText("消息连接服务")
                     .setContentIntent(pi)
                     .build();
@@ -344,38 +344,36 @@ public class JWebSocketClientService extends Service {
         Notification notification = null;
         NotificationManager mManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-
             Uri mUri = Settings.System.DEFAULT_NOTIFICATION_URI;
-
-            NotificationChannel mChannel = new NotificationChannel(CHANNEL_TWO_ID, "接受消息", NotificationManager.IMPORTANCE_LOW);
-
-            mChannel.setDescription("接受到消息");
-
+            NotificationChannel mChannel = new NotificationChannel(CHANNEL_TWO_ID, "接收消息", NotificationManager.IMPORTANCE_HIGH);
+            mChannel.setDescription("接收到消息");
+            mChannel.shouldShowLights();
             mChannel.setSound(mUri, Notification.AUDIO_ATTRIBUTES_DEFAULT);
-
             mManager.createNotificationChannel(mChannel);
-
             notification = new Notification.Builder(this, CHANNEL_TWO_ID)
                     .setChannelId(CHANNEL_TWO_ID)
                     .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle("服务器")
+                    .setContentTitle("接收到消息")
                     .setContentText(content)
                     .setContentIntent(pi)
+                    .setAutoCancel(true)
                     .build();
         } else {
             // 提升应用权限
             notification = new Notification.Builder(this)
                     .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle("服务器")
+                    .setContentTitle("接收到消息")
                     .setContentText(content)
+                    .setAutoCancel(true)
                     .setContentIntent(pi)
                     .build();
         }
-        notification.flags = Notification.FLAG_ONGOING_EVENT;
-        notification.flags |= Notification.FLAG_NO_CLEAR;
+//        notification.flags = Notification.FLAG_ONGOING_EVENT;
+//        notification.flags |= Notification.FLAG_SHOW_LIGHTS;
+//        notification.flags |= Notification.FLAG_AUTO_CANCEL;
+//        notification.flags |= Notification.FLAG_INSISTENT;
         notification.flags |= Notification.FLAG_FOREGROUND_SERVICE;
-        startForeground(20000, notification);
-
+        mManager.notify(1, notification);
 
     }
 
