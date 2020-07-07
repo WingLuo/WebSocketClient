@@ -23,9 +23,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -43,19 +42,22 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.rockerhieu.emojicon.EmojiconEditText;
+
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private Context mContext;
     private JWebSocketClient client;
     private JWebSocketClientService.JWebSocketClientBinder binder;
     private JWebSocketClientService jWebSClientService;
-    private EditText et_content, etUrl;
+    private EditText etUrl;
+    private EmojiconEditText et_content;
     private ListView listView;
-    private Button btn_send;
-    private ImageView btn_voice_or_text;
-    private Button btn_voice, btnConnect;
-    private RelativeLayout rl_input, rl_multi_and_send;
-    private List<ChatMessage> chatMessageList = new ArrayList<>();//消息列表
+    private TextView btn_send;
+
+    private Button btnConnect;
+    //消息列表
+    private List<ChatMessage> chatMessageList = new ArrayList<>();
     private Adapter_ChatMessage adapter_chatMessage;
     private ChatMessageReceiver chatMessageReceiver;
 
@@ -156,15 +158,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void findViewById() {
         etUrl = findViewById(R.id.etUrl);
         btnConnect = findViewById(R.id.btnConnect);
-        rl_multi_and_send = findViewById(R.id.rl_multi_and_send);
-        rl_input = findViewById(R.id.rl_input);
-        btn_voice_or_text = findViewById(R.id.btn_voice_or_text);
-        btn_voice = findViewById(R.id.btn_voice);
+
+
+
         listView = findViewById(R.id.chatmsg_listView);
-        btn_send = findViewById(R.id.btn_send);
-        et_content = findViewById(R.id.et_content);
+        btn_send = findViewById(R.id.text_send);
+        et_content = findViewById(R.id.bar_edit_text);
         btnConnect.setOnClickListener(this);
-        btn_voice_or_text.setOnClickListener(this);
+
         btn_send.setOnClickListener(this);
 
         SharedPreferences sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
@@ -218,18 +219,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 editor.commit();
                 startJWebSClientService();
                 break;
-            case R.id.btn_voice_or_text:
-                if (btn_voice.getVisibility() == View.VISIBLE) {
-                    btn_voice.setVisibility(View.GONE);
-                    rl_input.setVisibility(View.VISIBLE);
-                    rl_multi_and_send.setVisibility(View.VISIBLE);
-                } else {
-                    btn_voice.setVisibility(View.VISIBLE);
-                    rl_input.setVisibility(View.GONE);
-                    rl_multi_and_send.setVisibility(View.GONE);
-                }
-                break;
-            case R.id.btn_send:
+
+            case R.id.text_send:
                 String content = et_content.getText().toString();
                 if (content.length() <= 0) {
                     Util.showToast(mContext, "消息不能为空哟");

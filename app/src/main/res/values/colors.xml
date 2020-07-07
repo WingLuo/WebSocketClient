@@ -12,4 +12,8 @@
     <color name="menu_item_back_pres_color">#2DD0CF</color>
     <color name="btn_send_textcolor">@color/white</color>
     <color name="chat_text_color">#0B1816</color>
+    <color name="line">#EEEEEE</color>
+    <color name="colorLightGray">#CCCCCC</color>
+    <color name="transparent">#00000000</color>
+    <color name="colorBlackWithAlpha">#60000000</color>
 </resources>
