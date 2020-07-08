@@ -508,7 +508,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mEmotionKeyboard = EmotionKeyboard.with(this)
                 .setEmotionView(findViewById(R.id.ll_emotion_layout))//绑定表情面板
                 .bindToRxPerimission(rxPermissions)
-//                .bindToContent(binding.smartRefreshLayout)//绑定内容view
+                .bindToContent(listView)//绑定内容view
                 .bindToEditText(et_content)//判断绑定那种EditView
                 .bindToEmotionButton(emotion_button)//绑定表情按钮
                 .bindToVoiceButton(img_voice)
