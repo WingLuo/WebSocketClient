@@ -16,4 +16,7 @@
     <color name="colorLightGray">#CCCCCC</color>
     <color name="transparent">#00000000</color>
     <color name="colorBlackWithAlpha">#60000000</color>
+    <color name="bg_horizontal_btn_selected">#70a3a4a7</color>
+    <color name="bg_horizontal_line_color">#80a3a4a7</color>
+
 </resources>

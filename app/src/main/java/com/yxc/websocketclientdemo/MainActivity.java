@@ -23,16 +23,31 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.ViewPager;
 
+import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.yxc.websocketclientdemo.adapter.Adapter_ChatMessage;
+import com.yxc.websocketclientdemo.adapter.HorizontalRecyclerviewAdapter;
+import com.yxc.websocketclientdemo.adapter.NoHorizontalScrollerVPAdapter;
+import com.yxc.websocketclientdemo.customview.audiorecord.AudioRecorderButton;
+import com.yxc.websocketclientdemo.customview.emj.EmotionKeyboard;
+import com.yxc.websocketclientdemo.fragment.EmojiFragment;
+import com.yxc.websocketclientdemo.fragment.TestFragment;
 import com.yxc.websocketclientdemo.im.JWebSocketClient;
 import com.yxc.websocketclientdemo.im.JWebSocketClientService;
 import com.yxc.websocketclientdemo.modle.ChatMessage;
+import com.yxc.websocketclientdemo.modle.ImageModel;
+import com.yxc.websocketclientdemo.util.Lemoji;
+import com.yxc.websocketclientdemo.util.LeoOnItemClickManagerUtils;
 import com.yxc.websocketclientdemo.util.Util;
 
 import org.litepal.LitePal;
@@ -54,8 +69,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private EmojiconEditText et_content;
     private ListView listView;
     private TextView btn_send;
-
+    private ViewPager viewPager;
+    private RecyclerView recyclerviewHorizontal;
+    private ImageView img_voice; //切换语音按钮
+    private ImageView emotion_button;//表情按钮
+    private AudioRecorderButton audioRecordButton;//语音按钮
+    //申请权限
+    private RxPermissions rxPermissions;
+    //表情面板
+    private EmotionKeyboard mEmotionKeyboard;
     private Button btnConnect;
+
+
+    /**
+     * 底部表情的
+     * */
+    private HorizontalRecyclerviewAdapter horizontalRecyclerviewAdapter;
+    private ArrayList<Fragment> fragments = new ArrayList<>();
+    ArrayList<ImageModel> sourceList = new ArrayList<>();
+    private int oldPosition = 0;
+
     //消息列表
     private List<ChatMessage> chatMessageList = new ArrayList<>();
     private Adapter_ChatMessage adapter_chatMessage;
@@ -98,6 +131,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
         mContext = MainActivity.this;
+        rxPermissions = new RxPermissions(this);
         //启动服务
         startJWebSClientService();
         //绑定服务
@@ -109,6 +143,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById();
         initView();
         initData();
+        initEmj();
+        initVoiceRecord();
+        initEmjData();
     }
 
     private void initData() {
@@ -156,10 +193,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void findViewById() {
+        img_voice = findViewById(R.id.img_voice);
         etUrl = findViewById(R.id.etUrl);
         btnConnect = findViewById(R.id.btnConnect);
-
-
+        emotion_button = findViewById(R.id.emotion_button);
+        audioRecordButton = findViewById(R.id.audioRecordButton);
+        viewPager = findViewById(R.id.viewPager);
+        recyclerviewHorizontal = findViewById(R.id.recyclerview_horizontal);
 
         listView = findViewById(R.id.chatmsg_listView);
         btn_send = findViewById(R.id.text_send);
@@ -341,4 +381,159 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return false;
     }
 
+    private void initVoiceRecord() {
+        audioRecordButton.setAudioFinishRecorderListener(new AudioRecorderButton.AudioFinishRecorderListener() {
+            @Override
+            public void onFinish(int seconds, String FilePath) {
+
+                Log.d("audio path",FilePath);
+//                ChatBean chatBean9 = new ChatBean();
+//                chatBean9.setType(9);
+//                chatBean9.setSeconds(seconds);
+//                chatBean9.setAudioPath(FilePath);
+//                chatList.add(chatBean9);
+//                adapter.notifyDataSetChanged();
+//                binding.recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+            }
+        });
+    }
+    private void initEmjData() {
+        /*
+         * 注意这里如果只用到系统表情可用GlobalOnItemClickManagerUtils
+         *
+         * 既支持系统表情  又支持 自定义表情 用LeoOnItemClickManagerUtils 具体我会讲解。
+         * */
+        LeoOnItemClickManagerUtils.getInstance(this).attachToEditText(et_content);
+
+
+        ImageModel model1 = new ImageModel();
+        model1.icon = getResources().getDrawable(R.mipmap.emj_xiao);
+        model1.flag = "经典笑脸";
+        model1.isSelected = true;
+        sourceList.add(model1);
+
+        for (int i = 0; i < 4; i++) {
+            if (i == 0) {
+                ImageModel model2 = new ImageModel();
+                model2.icon = getResources().getDrawable(R.mipmap.gole);
+                model2.flag = "其他";
+                model2.isSelected = false;
+                sourceList.add(model2);
+            } else if (i == 1) {
+                ImageModel model2 = new ImageModel();
+                model2.icon = getResources().getDrawable(R.drawable.dding1);
+                model2.flag = "逗比";
+                model2.isSelected = false;
+                sourceList.add(model2);
+            } else {
+                ImageModel model2 = new ImageModel();
+                model2.icon = getResources().getDrawable(R.mipmap.emj_add);
+                model2.flag = "其他";
+                model2.isSelected = false;
+                sourceList.add(model2);
+            }
+
+        }
+
+        //底部tab
+        horizontalRecyclerviewAdapter = new HorizontalRecyclerviewAdapter(this, sourceList);
+        recyclerviewHorizontal.setHasFixedSize(true);//使RecyclerView保持固定的大小,这样会提高RecyclerView的性能
+        recyclerviewHorizontal.setAdapter(horizontalRecyclerviewAdapter);
+        recyclerviewHorizontal.setLayoutManager(new GridLayoutManager(this, 1, GridLayoutManager.HORIZONTAL, false));
+        //初始化recyclerview_horizontal监听器
+        horizontalRecyclerviewAdapter.setOnClickItemListener(new HorizontalRecyclerviewAdapter.OnClickItemListener() {
+            @Override
+            public void onItemClick(View view, int position, List<ImageModel> datas) {
+                //修改背景颜色的标记
+                datas.get(oldPosition).isSelected = false;
+                //记录当前被选中tab下标
+                datas.get(position).isSelected = true;
+                //通知更新，这里我们选择性更新就行了
+                horizontalRecyclerviewAdapter.notifyItemChanged(oldPosition);
+                horizontalRecyclerviewAdapter.notifyItemChanged(position);
+
+                //viewpager界面切换
+                viewPager.setCurrentItem(position, false);
+                oldPosition = position;
+            }
+
+            @Override
+            public void onItemLongClick(View view, int position, List<ImageModel> datas) {
+            }
+        });
+
+        fragments.add(EmojiFragment.newInstance(Lemoji.DATA));
+        fragments.add(EmojiFragment.newInstance(Lemoji.SUNDATA));
+        fragments.add(EmojiFragment.newInstance(Lemoji.MYFACE));
+        fragments.add(TestFragment.newInstance(4));
+        fragments.add(TestFragment.newInstance(5));
+
+        NoHorizontalScrollerVPAdapter adapter = new NoHorizontalScrollerVPAdapter(getSupportFragmentManager(), fragments);
+        viewPager.setAdapter(adapter);
+
+
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int i, float v, int i1) {
+
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+
+                //修改背景颜色的标记
+                sourceList.get(oldPosition).isSelected = false;
+                //记录当前被选中tab下标
+                sourceList.get(position).isSelected = true;
+                //通知更新，这里我们选择性更新就行了
+                horizontalRecyclerviewAdapter.notifyItemChanged(oldPosition);
+                horizontalRecyclerviewAdapter.notifyItemChanged(position);
+
+                //viewpager界面切换
+                viewPager.setCurrentItem(position, false);
+                oldPosition = position;
+
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int i) {
+
+            }
+        });
+
+
+    }
+
+    private void initEmj() {
+        mEmotionKeyboard = EmotionKeyboard.with(this)
+                .setEmotionView(findViewById(R.id.ll_emotion_layout))//绑定表情面板
+                .bindToRxPerimission(rxPermissions)
+//                .bindToContent(binding.smartRefreshLayout)//绑定内容view
+                .bindToEditText(et_content)//判断绑定那种EditView
+                .bindToEmotionButton(emotion_button)//绑定表情按钮
+                .bindToVoiceButton(img_voice)
+                .bindToVoiceStart(audioRecordButton)
+                .bindToSend(btn_send)
+                .build();
+
+        /*
+         * 注意这里如果只用到系统表情可用GlobalOnItemClickManagerUtils
+         *
+         * 既支持系统表情  又支持 自定义表情 用LeoOnItemClickManagerUtils 具体我会讲解。
+         * */
+//        GlobalOnItemClickManagerUtils.getInstance(MainActivity.this).attachToEditText(edit_content);
+
+//        text_send.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                ChatBean chatBean = new ChatBean();
+//                chatBean.setType(7);
+//                chatBean.setMessage(edit_content.getText().toString());
+//                edit_content.setText("");
+//                chatList.add(chatBean);
+//                adapter.notifyDataSetChanged();
+//                binding.recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+//            }
+//        });
+    }
 }
